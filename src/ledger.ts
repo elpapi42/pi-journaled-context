@@ -20,11 +20,25 @@ export type Span = {
   tokens: number;
 };
 
+/**
+ * The place of a journal entry of rank 2 or higher, reserved before its text exists. When a rank has collected
+ * `foldSize` new journal entries, an empty entry is appended right after them: its position is where the coarser
+ * journal entry will be shown, and its id is that journal entry's id. The text is written later, when the rank
+ * overflows and those entries fold.
+ */
+export type FoldSlot = {
+  /** The reserved entry. */
+  id: number;
+  rank: number;
+  /** Ids of the journal entries of the rank below that it will cover, oldest first. */
+  covers: number[];
+};
+
 /** One journal entry. Rank 1 covers one span; a higher rank covers journal entries of the rank below. */
 export type JournalEntry = {
-  /** Shown to the model. Rank 1: the span's marker entry. Higher ranks: the fold entry that recorded the fold. */
+  /** Shown to the model. Rank 1: the span's marker entry. Higher ranks: the entry reserved for it, see `FoldSlot`. */
   id: number;
-  /** The marker entry at whose position this journal entry is rendered. */
+  /** The entry at whose position this journal entry is rendered: its own. */
   anchor: number;
   rank: number;
   text: string;
@@ -53,6 +67,10 @@ export type Ledger = {
   sinceCompaction: number;
   spans: Span[];
   journal: Record<string, JournalEntry>;
+  /** Reserved places of journal entries of rank 2 and higher, oldest first. */
+  slots: FoldSlot[];
+  /** Per rank, the ids that are not yet part of a slot of the next rank. */
+  ungrouped: Record<string, number[]>;
   compressions: Record<string, PendingCompression>;
   removals: Record<string, PendingRemoval>;
   /** The conversation this ledger belongs to. A copy received by a fork still names the conversation it came from. */
@@ -78,6 +96,8 @@ export const LedgerDoc = defineDoc<Ledger>({
     sinceCompaction: 0,
     spans: [],
     journal: {},
+    slots: [],
+    ungrouped: {},
     compressions: {},
     removals: {},
     run: { active: false, queued: false, startedAt: 0 },
@@ -120,19 +140,27 @@ export async function ownLedger(tx: Tx, conversationId: ConversationId): Promise
   return ledger;
 }
 
-/** Journal entries of one rank that no higher rank covers yet, oldest first. */
-export function liveEntries(ledger: Ledger, rank: number): JournalEntry[] {
-  return Object.values(ledger.journal)
-    .filter((entry) => entry.rank === rank && entry.foldedInto === undefined)
-    .sort((a, b) => a.from - b.from || a.id - b.id);
+/** Ids of one rank that no journal entry of the next rank covers yet, oldest first: spans at rank 1, slots above. */
+export function liveIds(ledger: Ledger, rank: number): number[] {
+  const ids = rank === 1 ? ledger.spans.map((span) => span.id) : ledger.slots.filter((slot) => slot.rank === rank).map((slot) => slot.id);
+  return ids.filter((id) => ledger.journal[String(id)]?.foldedInto === undefined);
 }
 
-/** The fold that is due, if any: the lowest rank over its limit, and its oldest journal entries. */
-export function foldDue(ledger: Ledger, config: MemoryConfig): { rank: number; entries: JournalEntry[] } | undefined {
-  const ranks = [...new Set(Object.values(ledger.journal).map((entry) => entry.rank))].sort((a, b) => a - b);
+/** A fold that is due: the slot to write, the journal entries it covers, and those of them that have no text yet. */
+export type DueFold = { rank: number; slot: FoldSlot; entries: JournalEntry[]; missing: number[] };
+
+/**
+ * The fold that is due, if any. A rank that holds more than `rankSize` folds its oldest `foldSize`, which are exactly
+ * what the oldest unwritten slot of the next rank covers. Lower ranks come first.
+ */
+export function foldDue(ledger: Ledger, config: MemoryConfig): DueFold | undefined {
+  const ranks = [...new Set(ledger.slots.map((slot) => slot.rank - 1))].sort((a, b) => a - b);
   for (const rank of ranks) {
-    const live = liveEntries(ledger, rank);
-    if (live.length > config.rankSize) return { rank, entries: live.slice(0, config.foldSize) };
+    if (liveIds(ledger, rank).length <= config.rankSize) continue;
+    const slot = ledger.slots.find((candidate) => candidate.rank === rank + 1 && ledger.journal[String(candidate.id)] === undefined);
+    if (slot === undefined) continue;
+    const entries = slot.covers.map((id) => ledger.journal[String(id)]).filter((entry): entry is JournalEntry => entry !== undefined);
+    return { rank, slot, entries, missing: slot.covers.filter((id) => ledger.journal[String(id)] === undefined) };
   }
   return undefined;
 }

@@ -117,7 +117,7 @@ export function memoryTasks(config: MemoryConfig) {
     options: { now: number; closeOpenSpan: boolean; window: number | undefined },
   ): Promise<void> {
     await countActivity(tx, conversationId, ledger, options.now);
-    if (ledger.open.tokens >= config.spanTokens || options.closeOpenSpan) await closeSpan(tx, conversationId, ledger, options.closeOpenSpan ? "silence" : "size");
+    if (ledger.open.tokens >= config.spanTokens || options.closeOpenSpan) await closeSpan(tx, conversationId, ledger, options.closeOpenSpan ? "silence" : "size", config.foldSize);
     await requestRun(tx, conversationId, ledger, options.now);
 
     const size = contextTokens(view);

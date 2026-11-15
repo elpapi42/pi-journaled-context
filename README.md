@@ -21,7 +21,7 @@ The decisions are made in the background by a fork of the conversation, which ha
 | --- | --- |
 | Span | A fixed amount of new activity. Closing a span starts a fork run. |
 | Fork run | A forked copy of the conversation that decides what to compress and remove and writes the journal entry of the span. It changes nothing in the context; its decisions are stored as pending. |
-| Rank | The level of a journal entry. A rank 1 journal entry covers one span. When a rank holds too many, its oldest fold into one journal entry of the next rank. |
+| Rank | The level of a journal entry. A rank 1 journal entry covers one span. When a rank holds too many, its oldest fold into one journal entry of the next rank. The place and id of that coarser journal entry are reserved as soon as the entries it will cover exist, so every journal entry sits in time order with an id in order. |
 | Compaction | Ours, replacing Pi Durable's. At a threshold of new activity it applies everything pending as context edits. It calls no model, so it is immediate. |
 | Recall | A tool that returns what is behind an id: the journal entries a higher rank was folded from, the original entries of a span, or the original of a compressed result. |
 

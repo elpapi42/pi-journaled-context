@@ -53,7 +53,7 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
     `A journal entry is a truthful account of that stretch of the conversation: one paragraph of plain prose, as short as it can be and at most about ${config.journalEntryTokens} tokens. Cover what applies: what was asked, what was done, what was found or decided, what failed, how it ended, what was left unfinished. Keep exact names, paths, numbers and error texts. Say who said what, for example "the user asked", "I proposed". After the one or two statements that matter most, cite the id of the entry that supports them in square brackets, for example: the build failed with TS2322 [4871]. Record what happened; do not guess what will be useful later.`,
     `When a tool answers that a fold is due, write it with memory_fold: one journal entry of the next rank that covers the listed journal entries by the same rules, in less detail. Before you write it you may call memory_recall on the most important of them, as far down as you need, to get the details right.`,
   );
-  if (due !== undefined) {
+  if (due !== undefined && due.missing.length === 0) {
     lines.push(`A fold is already due for rank ${due.rank}: journal entries ${due.entries.map((entry) => entry.id).join(", ")}. Write it with memory_fold.`);
   }
   lines.push(

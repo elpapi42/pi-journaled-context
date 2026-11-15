@@ -63,7 +63,7 @@ export function buildEdits(ledger: Ledger, view: ContextView): { edits: ContextE
     for (const anchor of visibleAnchors(ledger, entry)) {
       if (anchor !== entry.anchor) edits.push({ target: asEntryId(anchor), action: "omit" });
     }
-    // The newest edit on a target wins, so this also replaces what the last covered journal entry showed there.
+    // A journal entry is rendered at its own entry: the span's marker at rank 1, the reserved slot above.
     edits.push({ target: asEntryId(entry.anchor), action: "replace", messages: [journalMessage(entry)] });
     summary.journal.push(entry.id);
   }

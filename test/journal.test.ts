@@ -30,9 +30,19 @@ test("a rank over its limit folds into the next rank, and recall walks back down
     assert.deepEqual(ranks, ["1:folded", "1:folded", "1:live", "1:live", "2:live"], "the two oldest journal entries folded into one of rank 2");
     const folded = Object.values(ledger.journal).find((entry) => entry.rank === 2)!;
     assert.deepEqual(folded.covers, [first!.id, second!.id]);
-    assert.equal(folded.anchor, second!.id, "it is rendered where the newest one it covers was");
-    assert.notEqual(folded.id, second!.id, "and it has an id of its own");
-    assert.ok((await t.entries()).some((entry) => entry.kind === "memory.fold" && entry.id === folded.id));
+    // Its place and id were reserved right after the second span closed, long before the fold was written.
+    assert.equal(folded.anchor, folded.id, "it is rendered at its own entry");
+    assert.ok(folded.id > second!.id && folded.id < third!.id, "and its id is in time order: after what it covers, before what follows");
+    const all = await t.entries();
+    const reserved = all.find((entry) => entry.id === folded.id)!;
+    assert.equal(reserved.kind, "memory.fold");
+    assert.equal(all[all.indexOf(reserved) - 1]!.id, second!.id, "the reserved entry comes right after the second span's marker");
+    // Every two spans reserve the place of their rank 2 journal entry, and two of those reserve one of rank 3.
+    const [slotA, slotB, slotC] = ledger.slots;
+    assert.deepEqual([slotA!.rank, slotA!.covers], [2, [first!.id, second!.id]]);
+    assert.deepEqual([slotB!.rank, slotB!.covers], [2, [third!.id, ledger.spans[3]!.id]]);
+    assert.deepEqual([slotC!.rank, slotC!.covers], [3, [slotA!.id, slotB!.id]]);
+    assert.equal(ledger.journal[String(slotB!.id)], undefined, "a reserved place stays empty until its rank overflows");
 
     const journals = (await t.context()).filter((line) => line.startsWith("user: <journal"));
     assert.equal(journals.length, 2, "one journal entry of rank 2 and one of rank 1 are visible");
