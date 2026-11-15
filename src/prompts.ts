@@ -12,7 +12,7 @@ This conversation has a long-running memory. Older parts are kept in a shorter f
 - A <journal id="..." from="..." to="..." rank="..."> block is a record of earlier work that is no longer shown in full. A higher rank covers a longer stretch in less detail. A number in square brackets inside it, such as [4871], is the id of an entry that mattered there.
 - Treat journal entries and compressed results as accurate records. Work they describe as done is done; do not redo it unless asked.
 - When you need the exact content behind one of these, call memory_recall with its id. A journal entry returns what it was written from, a compressed result returns the original, and an id in square brackets returns that entry.
-- The other memory tools are for memory maintenance, which runs by itself. You do not need to call them.`;
+- memory_compress, memory_remove, memory_cancel, memory_journal and memory_fold belong to a separate maintenance run that happens in the background. Do not call them during your normal work.`;
 
 export const TOOL_DESCRIPTIONS = {
   compress:
@@ -67,15 +67,15 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
   lines.push(
     "",
     "2. Compress.",
-    `Look at the tool results with an id below ${cut}. For each one whose full content is no longer needed for the work ahead, write a short text that says what came of the call and keeps the exact details that still matter, and pass all of them to memory_compress in one call. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
+    `Look at the tool results with an id lower than ${cut}. For each one whose full content is no longer needed for the work ahead, write a short text that says what came of the call and keeps the exact details that still matter, and pass all of them to memory_compress in one call. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
     "",
     "3. Remove.",
-    `Look at the user messages and your own messages with an id below ${cut}. Pass every one that is no longer useful for the current working context, the open work and the goals to memory_remove in one call, each with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
+    `Look at the user messages and your own messages with an id lower than ${cut}. Pass every one that is no longer useful for the current working context, the open work and the goals to memory_remove in one call, each with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
     "",
     "4. Cancel.",
     "If something already pending should not happen after all, for example because the work came back to it, call memory_cancel with its id. If a tool refuses an item, read why and do not repeat the same request.",
     "",
-    `Entries with an id of ${cut} or higher are the protected recent part and cannot be compressed or removed.`,
+    `Entry ${cut} and every entry after it are the protected recent part. They cannot be compressed or removed, so do not ask for them.`,
     `Already pending, do not repeat them. Compressions: ${pendingCompressions.join(", ") || "none"}. Removals: ${pendingRemovals.join(", ") || "none"}.`,
   );
   if (unseen.length > 0) {

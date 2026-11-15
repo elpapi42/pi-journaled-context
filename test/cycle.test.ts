@@ -7,7 +7,7 @@ const SMALL = { spanTokens: 600, protectedTokens: 300, compactionTokens: 1200, c
 
 /** A fork that journals every span it is asked for, compresses the oldest raw result and removes the oldest user message. */
 const diligentFork: ForkScript = (messages, instruction) => {
-  const cut = Number(/id below (\d+)/.exec(instruction)?.[1]);
+  const cut = Number(/id lower than (\d+)/.exec(instruction)?.[1]);
   const calls: { name: string; args: Record<string, unknown> }[] = [];
   for (const match of instruction.matchAll(/^- span (\d+):/gm)) {
     calls.push({ name: "memory_journal", args: { span: Number(match[1]), text: `The user asked for lookups; I ran them and reported forty facts each time [${match[1]}].` } });

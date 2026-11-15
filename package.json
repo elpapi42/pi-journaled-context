@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "description": "Short-term memory for Pi Durable that makes sessions endless: context edits decided in the background, plus a journal of what happened",
-  "license": "MIT",
-  "engines": { "node": ">=22.19.0" },
-  "pi": { "extensions": [] },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit"

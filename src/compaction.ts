@@ -57,12 +57,14 @@ export function buildEdits(ledger: Ledger, view: ContextView): { edits: ContextE
     .filter((entry) => !entry.applied && entry.foldedInto === undefined)
     .sort((a, b) => a.rank - b.rank || a.from - b.from);
   for (const entry of pending) {
+    entry.applied = true;
+    // After a reset the anchor is no longer part of the context, and there is nowhere to render the journal entry.
+    if (!entryById.has(entry.anchor)) continue;
     for (const anchor of visibleAnchors(ledger, entry)) {
       if (anchor !== entry.anchor) edits.push({ target: asEntryId(anchor), action: "omit" });
     }
     // The newest edit on a target wins, so this also replaces what the last covered journal entry showed there.
     edits.push({ target: asEntryId(entry.anchor), action: "replace", messages: [journalMessage(entry)] });
-    entry.applied = true;
     summary.journal.push(entry.id);
   }
   return { edits, summary };
