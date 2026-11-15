@@ -120,7 +120,7 @@ The extension adds nothing to the system prompt. The agent learns about recall f
 - **The header hook uses a method that is not in Pi Durable's documented hook interface** to map messages to entries. It falls back to the documented entry reads.
 - **The whole history stays in Pi Durable's active range,** because the head of the context never moves. Very long conversations will need more work here.
 - **The fork of each fork run stays in storage** as a conversation owned by the task that made it.
-- **A reset is not handled.** After `reset()`, journal entries anchored before the reset are no longer rendered.
+- **A reset starts from nothing, also for the memory.** After `reset()` the journal entries from before it are not shown, which is what a reset means. The ledger is not cleared, though, so old journal entries still count toward their rank.
 - Tested with Pi Durable 1.5.2 and Headless Pi, on `gpt-6-sol`, `gpt-6-luna`, Claude Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.2.
 
 ## Development
