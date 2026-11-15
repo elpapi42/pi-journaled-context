@@ -1,0 +1,26 @@
+{
+  "name": "pi-endless-memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Short-term memory for Pi Durable that makes sessions endless: context edits decided in the background, plus a journal of what happened",
+  "license": "MIT",
+  "engines": { "node": ">=22.19.0" },
+  "pi": { "extensions": [] },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/chord": "^1.5.2",
+    "@earendil-works/pi-ai": "^1.5.2",
+    "@earendil-works/pi-durable": "^1.5.2"
+  },
+  "devDependencies": {
+    "@earendil-works/chord": "1.5.2",
+    "@earendil-works/pi-ai": "1.5.2",
+    "@earendil-works/pi-durable": "1.5.2",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}
