@@ -41,31 +41,31 @@ test("the memory tools refuse what the design forbids, and say why", async () =>
     const firstAssistant = Number(/after="(\d+)"/.exec(textOf(sent.find((message) => message.role === "toolResult")!))![1]);
     const newestResult = results[results.length - 1]!;
 
-    await t.say(`call memory_compress {"items": [{"id": ${firstUser}, "text": "short"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${firstUser}, "text": "short"}]}`);
     assert.match(lastResult(t.requests), /is a user message\. Only tool results can be compressed/);
 
-    await t.say(`call memory_remove {"items": [{"id": ${firstResult}, "reason": "old"}]}`);
+    await t.say(`call jcm_remove {"items": [{"id": ${firstResult}, "reason": "old"}]}`);
     assert.match(lastResult(t.requests), new RegExp(`A tool result cannot be removed alone\\. It belongs to your message ${firstAssistant}`));
 
-    await t.say(`call memory_compress {"items": [{"id": ${newestResult}, "text": "short"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${newestResult}, "text": "short"}]}`);
     assert.match(lastResult(t.requests), /inside the protected recent part/);
 
-    await t.say(`call memory_compress {"items": [{"id": ${firstResult}, "text": "${"long ".repeat(200)}"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${firstResult}, "text": "${"long ".repeat(200)}"}]}`);
     assert.match(lastResult(t.requests), /may be at most 60 tokens/);
 
-    await t.say(`call memory_compress {"items": [{"id": ${firstResult}, "text": "forty facts about alpha"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${firstResult}, "text": "forty facts about alpha"}]}`);
     assert.match(lastResult(t.requests), new RegExp(`Pending: result ${firstResult} goes from about`));
-    await t.say(`call memory_compress {"items": [{"id": ${firstResult}, "text": "again"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${firstResult}, "text": "again"}]}`);
     assert.match(lastResult(t.requests), /already pending/);
 
-    await t.say(`call memory_cancel {"ids": [${firstResult}]}`);
+    await t.say(`call jcm_cancel {"ids": [${firstResult}]}`);
     assert.match(lastResult(t.requests), /Cancelled the pending compression/);
     assert.equal(Object.keys((await t.ledger()).compressions).length, 0);
-    await t.say(`call memory_cancel {"ids": [${firstResult}]}`);
+    await t.say(`call jcm_cancel {"ids": [${firstResult}]}`);
     assert.match(lastResult(t.requests), /Nothing is pending/);
 
-    await t.say(`call memory_compress {"items": [{"id": ${firstResult}, "text": "forty facts about alpha"}]}`);
-    await t.say(`call memory_remove {"items": [{"id": ${firstAssistant}, "reason": "the lookup is done"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${firstResult}, "text": "forty facts about alpha"}]}`);
+    await t.say(`call jcm_remove {"items": [{"id": ${firstAssistant}, "reason": "the lookup is done"}]}`);
     assert.match(lastResult(t.requests), new RegExp(`your message ${firstAssistant} leaves the context at the next compaction, together with its 1 tool call\\(s\\) \\(lookup\\) and their results ${firstResult}`));
     const ledger = await t.ledger();
     assert.equal(ledger.removals[String(firstAssistant)]?.reason, "the lookup is done");
@@ -73,14 +73,12 @@ test("the memory tools refuse what the design forbids, and say why", async () =>
 
     // Several items in one call: each gets its own line, and one good item is enough for the call to succeed.
     const secondResult = results[1]!;
-    await t.say(`call memory_compress {"items": [{"id": ${secondResult}, "text": "forty facts about beta"}, {"id": ${firstUser}, "text": "no"}]}`);
+    await t.say(`call jcm_compress {"items": [{"id": ${secondResult}, "text": "forty facts about beta"}, {"id": ${firstUser}, "text": "no"}]}`);
     assert.match(lastResult(t.requests), new RegExp(`Pending: result ${secondResult} goes from[^\\n]+\\nRefused: Entry ${firstUser} is a user message`));
 
-    await t.say(`call memory_journal {"span": 12345, "text": "nothing"}`);
-    assert.match(lastResult(t.requests), /There is no closed span 12345/);
-    await t.say(`call memory_fold {"text": "nothing"}`);
-    assert.match(lastResult(t.requests), /No fold is due/);
-    await t.say(`call memory_recall {"id": ${firstResult}}`);
+    await t.say(`call jcm_journal {"id": 12345, "text": "nothing"}`);
+    assert.match(lastResult(t.requests), /There is no journal entry 12345 waiting for its text\. Waiting now: none/);
+    await t.say(`call jcm_recall {"id": ${firstResult}}`);
     assert.match(lastResult(t.requests), new RegExp(`Original of entry ${firstResult}:[\\s\\S]*\\[tool result: lookup\\]\\nFact 1 about alpha`));
   } finally {
     await t.close();

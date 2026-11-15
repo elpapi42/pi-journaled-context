@@ -7,7 +7,7 @@ import { entryTokens, textTokens } from "../tokens.ts";
 import { entryRole } from "../view.ts";
 import { batchAnswer, done, idParameter, parameters, refused, toId, toItems, type ItemResult } from "./shared.ts";
 
-export const COMPRESS_TOOL = "memory_compress";
+export const COMPRESS_TOOL = "jcm_compress";
 
 export function compressTool(config: MemoryConfig) {
   return defineTool({
@@ -46,14 +46,14 @@ async function compressOne(tx: Tx, owner: ConversationId, ledger: Ledger, cut: n
   if (role !== "toolResult") {
     return refused(
       role === "user" || role === "assistant"
-        ? `Entry ${id} is a ${role} message. Only tool results can be compressed; a message is kept as it is or removed with memory_remove.`
+        ? `Entry ${id} is a ${role} message. Only tool results can be compressed; a message is kept as it is or removed with jcm_remove.`
         : `Entry ${id} is not a tool result, so it cannot be compressed.`,
     );
   }
   if (id >= cut) return refused(`Entry ${id} is inside the protected recent part, which starts at entry ${cut}. Only older entries can be compressed.`);
   const existing = ledger.compressions[String(id)];
-  if (existing?.applied) return refused(`Result ${id} is already compressed. Its original is available with memory_recall.`);
-  if (existing !== undefined) return refused(`A compression of result ${id} is already pending. Call memory_cancel with ${id} first to replace it.`);
+  if (existing?.applied) return refused(`Result ${id} is already compressed. Its original is available with jcm_recall.`);
+  if (existing !== undefined) return refused(`A compression of result ${id} is already pending. Call jcm_cancel with ${id} first to replace it.`);
   const step = await ownerOfResult(tx, owner, entry);
   if (step !== undefined && ledger.removals[String(step.id)] !== undefined) {
     return refused(`Result ${id} belongs to your message ${step.id}, which is already marked for removal, so it leaves with that message.`);

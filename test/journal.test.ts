@@ -5,9 +5,9 @@ import { scriptedModel, setup, sleep, textOf, type ForkScript } from "./helpers.
 
 /** A fork that only writes the journal entry of each span it is asked for. */
 const journalOnly: ForkScript = (_messages, instruction) =>
-  [...instruction.matchAll(/^- span (\d+):/gm)].map((match) => ({
-    name: "memory_journal",
-    args: { span: Number(match[1]), text: `Span ${match[1]}: the user asked for a lookup and I ran it [${match[1]}].` },
+  [...instruction.matchAll(/^- journal entry (\d+), rank \d+:/gm)].map((match) => ({
+    name: "jcm_journal",
+    args: { id: Number(match[1]), text: `Span ${match[1]}: the user asked for a lookup and I ran it [${match[1]}].` },
   }));
 
 const lastResult = (requests: Message[][]) => {
@@ -35,7 +35,7 @@ test("a rank over its limit folds into the next rank, and recall walks back down
     assert.ok(folded.id > second!.id && folded.id < third!.id, "and its id is in time order: after what it covers, before what follows");
     const all = await t.entries();
     const reserved = all.find((entry) => entry.id === folded.id)!;
-    assert.equal(reserved.kind, "memory.fold");
+    assert.equal(reserved.kind, "jcm.fold");
     assert.equal(all[all.indexOf(reserved) - 1]!.id, second!.id, "the reserved entry comes right after the second span's marker");
     // Every two spans reserve the place of their rank 2 journal entry, and two of those reserve one of rank 3.
     const [slotA, slotB, slotC] = ledger.slots;
@@ -49,6 +49,12 @@ test("a rank over its limit folds into the next rank, and recall walks back down
     assert.match(journals[0]!, new RegExp(`^user: <journal id="${folded.id}" from="[^"]+" to="[^"]+" rank="2">`));
     assert.match(journals[1]!, new RegExp(`^user: <journal id="${third!.id}" from="[^"]+" to="[^"]+" rank="1">`));
 
+    // A reserved journal entry cannot be written before its rank overflows, and the refusal says why.
+    await t.say(`call jcm_journal {"id": ${slotB!.id}, "text": "too early"}`);
+    assert.match(lastResult(t.requests), new RegExp(`Journal entry ${slotB!.id} of rank 2 is not due yet\\. It is written when rank 1 holds more than 2 journal entries; it holds 2 now`));
+    await t.say(`call jcm_journal {"id": ${first!.id}, "text": "again"}`);
+    assert.match(lastResult(t.requests), new RegExp(`Journal entry ${first!.id} is already written`));
+
     // What the provider is sent: a journal entry of any rank starts with its own wrapper, not with an entry header.
     await t.say("thanks");
     const sent = t.requests[t.requests.length - 1]!.map(textOf).filter((text) => text.includes("<journal"));
@@ -56,19 +62,19 @@ test("a rank over its limit folds into the next rank, and recall walks back down
     assert.ok(sent.every((text) => text.startsWith("<journal id=")), "no header is put in front of a journal entry");
 
     // Recall on rank 2 returns the journal entries it was written from.
-    await t.say(`call memory_recall {"id": ${folded.id}}`);
+    await t.say(`call jcm_recall {"id": ${folded.id}}`);
     const down = lastResult(t.requests);
     assert.match(down, new RegExp(`was written from these 2 journal entries of rank 1`));
     assert.ok(down.includes(`<journal id="${first!.id}"`) && down.includes(`<journal id="${second!.id}"`));
 
     // Recall on rank 1 returns the raw span, one page at a time.
-    await t.say(`call memory_recall {"id": ${first!.id}}`);
+    await t.say(`call jcm_recall {"id": ${first!.id}}`);
     const page = lastResult(t.requests);
     assert.match(page, new RegExp(`Original entries of span ${first!.id}`));
     assert.ok(page.includes("[user]\nlookup alpha"), "the user's words, as they were");
-    const next = /Call memory_recall with id \d+ and after (\d+) for the next page/.exec(page);
+    const next = /Call jcm_recall with id \d+ and after (\d+) for the next page/.exec(page);
     assert.ok(next, "the span is larger than a page, so the answer says how to continue");
-    await t.say(`call memory_recall {"id": ${first!.id}, "after": ${next![1]}}`);
+    await t.say(`call jcm_recall {"id": ${first!.id}, "after": ${next![1]}}`);
     const rest = lastResult(t.requests);
     assert.match(rest, new RegExp(`continuing after ${next![1]}`));
     assert.ok(rest.includes("[tool result: lookup]\nFact 1 about alpha") || rest.includes("Fact 1 about alpha"), "the original tool result is in a later page");

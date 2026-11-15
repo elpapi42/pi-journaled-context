@@ -38,7 +38,7 @@ export const headerIds = (messages: readonly Message[], role: Message["role"]) =
 /**
  * The model of the tests. A user message "lookup <topic>" makes it call the lookup tool and then answer, and
  * "call <tool> <json>" makes it call that tool; any other message gets a short answer. In a maintenance run it makes the calls `fork` returns, then says done. A tool answer
- * that announces a fold makes it write the fold.
+ * that says a journal entry of a higher rank is now due makes it write that one.
  */
 export function scriptedModel(fork: ForkScript): Responder {
   return (messages) => {
@@ -48,8 +48,9 @@ export function scriptedModel(fork: ForkScript): Responder {
     const instruction = lastUser === undefined ? "" : textOf(lastUser);
     const maintenance = instruction.includes(MAINTENANCE);
     if (last.role === "toolResult") {
-      if (maintenance && textOf(last).includes("A fold is now due")) {
-        return fauxAssistantMessage(fauxToolCall("memory_fold", { text: "Folded: earlier spans looked up several topics; all lookups succeeded." }), { stopReason: "toolUse" });
+      const due = maintenance ? /Journal entry (\d+) of rank \d+ is now due/.exec(textOf(last)) : null;
+      if (due !== null) {
+        return fauxAssistantMessage(fauxToolCall("jcm_journal", { id: Number(due[1]), text: "Earlier spans looked up several topics; all lookups succeeded." }), { stopReason: "toolUse" });
       }
       return fauxAssistantMessage(maintenance ? "done" : "The lookup returned forty facts.");
     }

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { scriptedModel, setup, type ForkScript } from "./helpers.ts";
 
 const journalOnly: ForkScript = (_messages, instruction) =>
-  [...instruction.matchAll(/^- span (\d+):/gm)].map((match) => ({ name: "memory_journal", args: { span: Number(match[1]), text: `Span ${match[1]}: a lookup was run.` } }));
+  [...instruction.matchAll(/^- journal entry (\d+), rank \d+:/gm)].map((match) => ({ name: "jcm_journal", args: { id: Number(match[1]), text: `Span ${match[1]}: a lookup was run.` } }));
 
 test("over the hard limit, everything pending is applied at once; with nothing pending, a notice says so", async () => {
   // A reserve larger than any context window puts every context over the limit.
@@ -12,21 +12,21 @@ test("over the hard limit, everything pending is applied at once; with nothing p
     await t.say("lookup alpha");
     await t.settle();
     let kinds = (await t.entries()).map((entry) => entry.kind);
-    assert.equal(kinds.filter((kind) => kind === "memory.notice").length, 1, "nothing was pending yet, so the notice was written");
-    assert.ok(!kinds.includes("memory.compaction"));
+    assert.equal(kinds.filter((kind) => kind === "jcm.notice").length, 1, "nothing was pending yet, so the notice was written");
+    assert.ok(!kinds.includes("jcm.compaction"));
 
     // The fork run has written a journal entry by now. The next end of run applies it although the threshold is far away.
     await t.say("lookup beta");
     await t.settle();
     kinds = (await t.entries()).map((entry) => entry.kind);
-    assert.ok(kinds.includes("memory.compaction"), "the pending journal entry was applied at the limit");
-    const notice = (await t.entries()).find((entry) => entry.kind === "memory.notice")!;
+    assert.ok(kinds.includes("jcm.compaction"), "the pending journal entry was applied at the limit");
+    const notice = (await t.entries()).find((entry) => entry.kind === "jcm.notice")!;
     assert.match(String((notice.data as { message: string }).message), /over the limit .* nothing is pending that could shrink it/);
 
     await t.say("hello");
     await t.say("hello again");
     kinds = (await t.entries()).map((entry) => entry.kind);
-    assert.ok(kinds.filter((kind) => kind === "memory.notice").length <= 2, "the notice is not repeated at every run");
+    assert.ok(kinds.filter((kind) => kind === "jcm.notice").length <= 2, "the notice is not repeated at every run");
   } finally {
     await t.close();
   }

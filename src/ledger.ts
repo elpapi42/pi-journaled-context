@@ -2,11 +2,11 @@ import { defineDoc, type ConversationId, type EntryId, type Tx } from "@earendil
 import type { MemoryConfig } from "./config.ts";
 
 /** Entry kinds this extension writes. None of them shows anything to the model by itself. */
-export const SPAN_KIND = "memory.span";
-export const FOLD_KIND = "memory.fold";
-export const COMPACTION_KIND = "memory.compaction";
-export const NOTICE_KIND = "memory.notice";
-export const isMemoryKind = (kind: string): boolean => kind.startsWith("memory.");
+export const SPAN_KIND = "jcm.span";
+export const FOLD_KIND = "jcm.fold";
+export const COMPACTION_KIND = "jcm.compaction";
+export const NOTICE_KIND = "jcm.notice";
+export const isMemoryKind = (kind: string): boolean => kind.startsWith("jcm.");
 
 /** A closed span: a contiguous amount of activity. Its id is the id of its marker entry. */
 export type Span = {
@@ -84,7 +84,7 @@ export type Ledger = {
 };
 
 export const LedgerDoc = defineDoc<Ledger>({
-  kind: "memory.ledger",
+  kind: "jcm.ledger",
   version: 1,
   scope: "conversation",
   // A fork receives the ledger as it was at the fork point, which needs the history.

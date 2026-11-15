@@ -23,7 +23,7 @@ export function memoryTasks(config: MemoryConfig) {
    * decisions to this conversation's ledger through the memory tools; nothing here changes the context.
    */
   const ForkRun = defineTask<Record<string, never>, ForkRunState, null>({
-    name: "memory.fork-run",
+    name: "jcm.fork-run",
     version: 1,
     initial: () => ({ phase: "start" }),
     phases: {
@@ -56,7 +56,7 @@ export function memoryTasks(config: MemoryConfig) {
           const handle = await runtime.conversation(asConversationId(fork), context);
           if (ledger !== undefined && handle !== undefined) {
             const submission = await handle.submit(
-              { type: "input", content: forkInstruction(ledger as Ledger, config, cut), requestId: `memory.fork-run:${task.id}` },
+              { type: "input", content: forkInstruction(ledger as Ledger, config, cut), requestId: `jcm.fork-run:${task.id}` },
               context,
             );
             await submission.wait(context);
@@ -141,7 +141,7 @@ export function memoryTasks(config: MemoryConfig) {
 
   /** The silence timer: when no activity arrives for `silenceMs`, the open span is closed. Activity restarts it. */
   const SilenceTimer = defineTask<Record<string, never>, TimerState, null>({
-    name: "memory.silence-timer",
+    name: "jcm.silence-timer",
     version: 1,
     initial: () => ({ phase: "wait" }),
     phases: {
@@ -179,7 +179,7 @@ export function memoryTasks(config: MemoryConfig) {
 
   /** Runs at the end of every run of a conversation: the trigger for spans, fork runs and compactions. */
   const Tick = defineTask<Record<string, never>, TickState, null>({
-    name: "memory.tick",
+    name: "jcm.tick",
     version: 1,
     initial: () => ({ phase: "run" }),
     phases: {

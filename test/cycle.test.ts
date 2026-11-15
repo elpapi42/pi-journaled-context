@@ -9,15 +9,15 @@ const SMALL = { spanTokens: 600, protectedTokens: 300, compactionTokens: 1200, c
 const diligentFork: ForkScript = (messages, instruction) => {
   const cut = Number(/id lower than (\d+)/.exec(instruction)?.[1]);
   const calls: { name: string; args: Record<string, unknown> }[] = [];
-  for (const match of instruction.matchAll(/^- span (\d+):/gm)) {
-    calls.push({ name: "memory_journal", args: { span: Number(match[1]), text: `The user asked for lookups; I ran them and reported forty facts each time [${match[1]}].` } });
+  for (const match of instruction.matchAll(/^- journal entry (\d+), rank \d+:/gm)) {
+    calls.push({ name: "jcm_journal", args: { id: Number(match[1]), text: `The user asked for lookups; I ran them and reported forty facts each time [${match[1]}].` } });
   }
   const before = messages.slice(0, -1);
   const raw = before.filter((message: Message) => message.role === "toolResult" && !textOf(message).includes('compressed="true"'));
   const result = headerIds(raw, "toolResult").find((id) => id < cut);
-  if (result !== undefined) calls.push({ name: "memory_compress", args: { items: [{ id: result, text: "lookup returned forty numbered facts; fact 1 is 0." }] } });
+  if (result !== undefined) calls.push({ name: "jcm_compress", args: { items: [{ id: result, text: "lookup returned forty numbered facts; fact 1 is 0." }] } });
   const user = headerIds(before, "user").find((id) => id < cut);
-  if (user !== undefined) calls.push({ name: "memory_remove", args: { items: [{ id: user, reason: "the lookup it asked for is done" }] } });
+  if (user !== undefined) calls.push({ name: "jcm_remove", args: { items: [{ id: user, reason: "the lookup it asked for is done" }] } });
   return calls;
 };
 
@@ -41,7 +41,7 @@ test("a span closes, a fork run decides, and our compaction applies everything p
     ledger = await t.ledger();
     const context = await t.context();
     const kinds = (await t.entries()).map((entry) => entry.kind);
-    assert.ok(kinds.includes("memory.compaction"), "the compaction wrote one entry of edits");
+    assert.ok(kinds.includes("jcm.compaction"), "the compaction wrote one entry of edits");
     assert.equal(ledger.journal[String(span.id)]?.applied, true);
     assert.ok(context.some((line) => line.startsWith(`user: <journal id="${span.id}"`)), "the journal entry is rendered as a user message");
     assert.ok(context.some((line) => line.includes("lookup returned forty numbered facts")), "the compressed text replaced the result");

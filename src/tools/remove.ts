@@ -6,7 +6,7 @@ import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { entryRole, toolCalls } from "../view.ts";
 import { batchAnswer, done, idParameter, parameters, refused, toId, toItems, type ItemResult } from "./shared.ts";
 
-export const REMOVE_TOOL = "memory_remove";
+export const REMOVE_TOOL = "jcm_remove";
 
 export function removeTool(config: MemoryConfig) {
   return defineTool({
@@ -44,11 +44,11 @@ async function removeOne(tx: Tx, owner: ConversationId, ledger: Ledger, cut: num
   const role = entryRole(entry);
   if (role === "toolResult") {
     const step = await ownerOfResult(tx, owner, entry);
-    if (step === undefined) return refused(`Entry ${id} is a tool result. A tool result cannot be removed alone; it can only be compressed with memory_compress.`);
+    if (step === undefined) return refused(`Entry ${id} is a tool result. A tool result cannot be removed alone; it can only be compressed with jcm_compress.`);
     const siblings = (await resultsOfEntry(tx, owner, step)).map((result) => result.id);
     return refused(
       `Entry ${id} is a tool result. A tool result cannot be removed alone. It belongs to your message ${step.id}, which made ${toolCalls(step).length} tool call(s) with results ${siblings.join(", ")}. ` +
-        `To remove the whole step call memory_remove with ${step.id}; to shorten only this result call memory_compress with ${id}.`,
+        `To remove the whole step call jcm_remove with ${step.id}; to shorten only this result call jcm_compress with ${id}.`,
     );
   }
   if (role === "other") {

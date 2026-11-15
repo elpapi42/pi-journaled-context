@@ -10,9 +10,7 @@ export const TOOL_DESCRIPTIONS = {
   cancel:
     "Memory maintenance. Withdraw pending compressions or removals by the ids of their entries, before they are applied.",
   journal:
-    "Memory maintenance. Write the journal entry of one closed span. `span` is the span id given in the maintenance instructions. `text` is one paragraph of plain prose: a truthful account of that stretch of the conversation.",
-  fold:
-    "Memory maintenance. Write one journal entry of the next rank for the journal entries a fold is due for. Call it only when memory_journal or memory_fold answered that a fold is due. `text` covers all of them in one coarser paragraph.",
+    "Memory maintenance. Write the text of one journal entry. `id` is the id of the journal entry to write, as given in the maintenance instructions or in an earlier answer of this tool. A journal entry of rank 1 covers one span of the conversation; one of a higher rank covers journal entries of the rank below. `text` is one paragraph of plain prose: a truthful account of what it covers.",
   recall:
     "Parts of this conversation are kept in a shorter form: a tool result whose header says compressed=\"true\" is a shortened version of the original, and a <journal> block records earlier work that is no longer shown in full. This tool returns what is behind an id. A journal entry of rank 2 or higher returns the journal entries it was written from. A journal entry of rank 1 returns the original entries of its span, in pages; pass `after` with the id the previous page ended on to continue. A compressed tool result, or a number in square brackets inside a journal entry, returns that original entry. A page can be long: in a codemode script, raise the script's output limit in its options line, for example // @options: {\"max_output_tokens\": 30000}.",
 } as const;
@@ -41,31 +39,32 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
     "",
     "1. Journal.",
   ];
-  if (spans.length > 0) {
-    lines.push("Write one journal entry with memory_journal for each of these spans:");
+  const foldReady = due !== undefined && due.missing.length === 0;
+  if (spans.length > 0 || foldReady) {
+    lines.push("Write these journal entries with jcm_journal, one call each, in this order:");
     for (const span of spans) {
-      lines.push(`- span ${span.id}: entries ${span.first} to ${span.last}, ${stamp(span.from)} to ${stamp(span.to)}`);
+      lines.push(`- journal entry ${span.id}, rank 1: covers entries ${span.first} to ${span.last}, ${stamp(span.from)} to ${stamp(span.to)}`);
+    }
+    if (foldReady) {
+      lines.push(`- journal entry ${due.slot.id}, rank ${due.slot.rank}: covers journal entries ${due.slot.covers.join(", ")} of rank ${due.rank}`);
     }
   } else {
-    lines.push("No span needs a journal entry in this run.");
+    lines.push("No journal entry needs to be written in this run.");
   }
   lines.push(
     `A journal entry is a truthful account of that stretch of the conversation: one paragraph of plain prose, as short as it can be and at most about ${config.journalEntryTokens} tokens. Cover what applies: what was asked, what was done, what was found or decided, what failed, how it ended, what was left unfinished. Keep exact names, paths, numbers and error texts. Say who said what, for example "the user asked", "I proposed". After the one or two statements that matter most, cite the id of the entry that supports them in square brackets, for example: the build failed with TS2322 [4871]. Record what happened; do not guess what will be useful later.`,
-    `When a tool answers that a fold is due, write it with memory_fold: one journal entry of the next rank that covers the listed journal entries by the same rules, in less detail. Before you write it you may call memory_recall on the most important of them, as far down as you need, to get the details right.`,
+    `A journal entry of rank 2 or higher covers journal entries of the rank below, by the same rules and in less detail. When jcm_journal answers that one is now due, write it too. Before you write one you may call jcm_recall on the most important journal entries it covers, as far down as you need, to get the details right.`,
   );
-  if (due !== undefined && due.missing.length === 0) {
-    lines.push(`A fold is already due for rank ${due.rank}: journal entries ${due.entries.map((entry) => entry.id).join(", ")}. Write it with memory_fold.`);
-  }
   lines.push(
     "",
     "2. Compress.",
-    `Look at the tool results with an id lower than ${cut}. For each one whose full content is no longer needed for the work ahead, write a short text that says what came of the call and keeps the exact details that still matter, and pass all of them to memory_compress in one call. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
+    `Look at the tool results with an id lower than ${cut}. For each one whose full content is no longer needed for the work ahead, write a short text that says what came of the call and keeps the exact details that still matter, and pass all of them to jcm_compress in one call. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
     "",
     "3. Remove.",
-    `Look at the user messages and your own messages with an id lower than ${cut}. Pass every one that is no longer useful for the current working context, the open work and the goals to memory_remove in one call, each with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
+    `Look at the user messages and your own messages with an id lower than ${cut}. Pass every one that is no longer useful for the current working context, the open work and the goals to jcm_remove in one call, each with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
     "",
     "4. Cancel.",
-    "If something already pending should not happen after all, for example because the work came back to it, call memory_cancel with its id. If a tool refuses an item, read why and do not repeat the same request.",
+    "If something already pending should not happen after all, for example because the work came back to it, call jcm_cancel with its id. If a tool refuses an item, read why and do not repeat the same request.",
     "",
     `Entry ${cut} and every entry after it are the protected recent part. They cannot be compressed or removed, so do not ask for them.`,
     `Already pending, do not repeat them. Compressions: ${pendingCompressions.join(", ") || "none"}. Removals: ${pendingRemovals.join(", ") || "none"}.`,
@@ -83,19 +82,18 @@ function toolReference(config: MemoryConfig): string[] {
   const how = config.codemodeOnly
     ? [
         "The memory tools are not listed anywhere else. Call them from a codemode script as `await tools.<name>(arguments)`. Each one returns a text that says what it did or why it refused an item. Print what every call returns with console.log so you can read it, for example:",
-        "console.log(await tools.memory_journal({ span: 4830, text: \"...\" }));",
+        "console.log(await tools.jcm_journal({ id: 4830, text: \"...\" }));",
         "You can make several calls in one script.",
       ]
     : ["The memory tools are ordinary tools. Each one answers with a text that says what it did or why it refused an item."];
   return [
     "The memory tools:",
     ...how,
-    "- memory_journal({ span: number, text: string }) writes the journal entry of one closed span.",
-    "- memory_fold({ text: string }) writes one journal entry of the next rank, when a tool answer says a fold is due.",
-    "- memory_compress({ items: [{ id: number, text: string }, ...] }) marks tool results to be replaced by the given short text.",
-    "- memory_remove({ items: [{ id: number, reason: string }, ...] }) marks user messages or your own messages to leave the context.",
-    "- memory_cancel({ ids: [number, ...] }) withdraws a pending compression or removal.",
-    "- memory_recall({ id: number, after?: number }) returns what is behind an id: the journal entries a higher-rank journal entry was written from, the original entries of a rank 1 journal entry's span, or the original of one entry.",
+    "- jcm_journal({ id: number, text: string }) writes the text of one journal entry.",
+    "- jcm_compress({ items: [{ id: number, text: string }, ...] }) marks tool results to be replaced by the given short text.",
+    "- jcm_remove({ items: [{ id: number, reason: string }, ...] }) marks user messages or your own messages to leave the context.",
+    "- jcm_cancel({ ids: [number, ...] }) withdraws a pending compression or removal.",
+    "- jcm_recall({ id: number, after?: number }) returns what is behind an id: the journal entries a higher-rank journal entry was written from, the original entries of a rank 1 journal entry's span, or the original of one entry.",
     "Nothing these tools mark changes the context now. It is applied later, all at once.",
   ];
 }

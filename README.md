@@ -94,7 +94,7 @@ With Headless Pi, settings are read from `<workspace>/.hpi/memory.json`. Every f
 | `recallPageTokens` | 20000 | Most raw history one recall answer returns |
 | `forkTurnLimit` | 16 | Turns a fork run may take |
 | `silenceMs` | 180000 | Silence that closes an open span |
-| `codemodeOnly` | false | Offer the memory tools only to codemode scripts, and keep the five maintenance tools out of codemode's tool list. Recommended; see below. |
+| `codemodeOnly` | false | Offer the memory tools only to codemode scripts, and keep the four maintenance tools out of codemode's tool list. Recommended; see below. |
 
 Token counts are estimates, as pi-ai estimates them.
 
@@ -102,14 +102,13 @@ Token counts are estimates, as pi-ai estimates them.
 
 | Tool | What it does |
 | --- | --- |
-| `memory_recall` | Returns what is behind an id. This is the one tool the agent uses in normal work. |
-| `memory_compress` | Marks tool results to be replaced by a short text |
-| `memory_remove` | Marks user or assistant messages to leave the context; an assistant message takes its tool calls and their results with it |
-| `memory_cancel` | Withdraws a pending compression or removal |
-| `memory_journal` | Writes the journal entry of a closed span |
-| `memory_fold` | Writes the journal entry of the next rank when a rank is over its limit |
+| `jcm_recall` | Returns what is behind an id. This is the one tool the agent uses in normal work. |
+| `jcm_compress` | Marks tool results to be replaced by a short text |
+| `jcm_remove` | Marks user or assistant messages to leave the context; an assistant message takes its tool calls and their results with it |
+| `jcm_cancel` | Withdraws a pending compression or removal |
+| `jcm_journal` | Writes the text of one journal entry, of any rank |
 
-The first is for the agent. The other five are the maintenance tools, meant for fork runs. Each one checks what it is asked and refuses with an explanation, for example when a target is inside the protected recent part or when a tool result would be removed alone.
+The first is for the agent. The other four are the maintenance tools, meant for fork runs. Each one checks what it is asked and refuses with an explanation, for example when a target is inside the protected recent part or when a tool result would be removed alone.
 
 A fork run can call nothing but these tools. Every other tool call is blocked there, so a fork cannot act on the world.
 
@@ -117,13 +116,13 @@ A fork run can call nothing but these tools. Every other tool call is blocked th
 
 The extension adds nothing to the system prompt. The agent learns about recall from that tool's description, and a fork run is told about the maintenance tools in its instruction.
 
-- **With `codemodeOnly: true`** (needs the codemode extension): no memory tool is offered to the model directly. The five maintenance tools are deferred, so codemode does not list them and the agent does not know they exist. Only `memory_recall` appears in codemode's tool list. A fork run calls the tools from codemode scripts.
-- **With `codemodeOnly: false`:** all six are ordinary tools the model can call. Expect the agent to call the maintenance tools itself from time to time; in tests one model did so on every turn.
+- **With `codemodeOnly: true`** (needs the codemode extension): no memory tool is offered to the model directly. The four maintenance tools are deferred, so codemode does not list them and the agent does not know they exist. Only `jcm_recall` appears in codemode's tool list. A fork run calls the tools from codemode scripts.
+- **With `codemodeOnly: false`:** all five are ordinary tools the model can call. Expect the agent to call the maintenance tools itself from time to time; in tests one model did so on every turn.
 
 ## Limits of this version
 
 - **Spans close and compactions apply only at the end of a run,** or after silence. A very long run is one span until it ends. Pi Durable has an unreleased hook that runs after every tool round; the trigger will move there.
-- **At the hard limit the only measure is to apply what is pending.** If the context is still over the model's window, a `memory.notice` entry says so and the provider may reject the next request.
+- **At the hard limit the only measure is to apply what is pending.** If the context is still over the model's window, a `jcm.notice` entry says so and the provider may reject the next request.
 - **Forks do not always read the parent's cache on OpenAI.** A fork gets a new provider session identity, and in tests most forks paid full price for their first request there. On Anthropic every fork read the cache.
 - **The header hook uses a method that is not in Pi Durable's documented hook interface** to map messages to entries. It falls back to the documented entry reads.
 - **The whole history stays in Pi Durable's active range,** because the head of the context never moves. Very long conversations will need more work here.

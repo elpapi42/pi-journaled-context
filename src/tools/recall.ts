@@ -9,7 +9,7 @@ import { textTokens } from "../tokens.ts";
 import { assistantMessage, entryRole, toolResultMessage } from "../view.ts";
 import { answer, idParameter, parameters, refuse, toId } from "./shared.ts";
 
-export const RECALL_TOOL = "memory_recall";
+export const RECALL_TOOL = "jcm_recall";
 
 /** One original entry as readable text, with the same header the context would give it. */
 async function renderEntry(tx: Tx, owner: ConversationId, entry: EntryRecord): Promise<string | undefined> {
@@ -40,7 +40,7 @@ async function renderEntry(tx: Tx, owner: ConversationId, entry: EntryRecord): P
 function describeCovered(ledger: Ledger, entry: JournalEntry): string {
   const covered = entry.covers.map((id) => ledger.journal[String(id)]).filter((item): item is JournalEntry => item !== undefined);
   return (
-    `Journal entry ${entry.id} (rank ${entry.rank}) was written from these ${covered.length} journal entries of rank ${entry.rank - 1}. Call memory_recall with one of their ids to go further down.\n\n` +
+    `Journal entry ${entry.id} (rank ${entry.rank}) was written from these ${covered.length} journal entries of rank ${entry.rank - 1}. Call jcm_recall with one of their ids to go further down.\n\n` +
     covered.map(journalText).join("\n\n")
   );
 }
@@ -70,7 +70,7 @@ async function describeSpan(tx: Tx, owner: ConversationId, ledger: Ledger, entry
   }
   if (parts.length === 0) return `Span ${entry.id} has no more entries${after === undefined ? "" : ` after ${after}`}.`;
   const head = `Original entries of span ${entry.id} (entries ${span.first} to ${span.last})${after === undefined ? "" : `, continuing after ${after}`}:`;
-  const tail = more ? `\n\nThe span continues. Call memory_recall with id ${entry.id} and after ${lastId} for the next page.` : `\n\nEnd of span ${entry.id}.`;
+  const tail = more ? `\n\nThe span continues. Call jcm_recall with id ${entry.id} and after ${lastId} for the next page.` : `\n\nEnd of span ${entry.id}.`;
   return `${head}\n\n${parts.join("\n\n")}${tail}`;
 }
 

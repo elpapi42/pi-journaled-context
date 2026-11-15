@@ -3,7 +3,7 @@ import { targetLedger, type Ledger } from "../ledger.ts";
 import { TOOL_DESCRIPTIONS } from "../prompts.ts";
 import { batchAnswer, done, idParameter, parameters, refused, toId, type ItemResult } from "./shared.ts";
 
-export const CANCEL_TOOL = "memory_cancel";
+export const CANCEL_TOOL = "jcm_cancel";
 
 export function cancelTool() {
   return defineTool({
@@ -31,7 +31,7 @@ function cancelOne(ledger: Ledger, id: number): ItemResult {
   const tooLate: string[] = [];
   const compression = ledger.compressions[key];
   if (compression !== undefined) {
-    if (compression.applied) tooLate.push("its compression was already applied; the original is available with memory_recall");
+    if (compression.applied) tooLate.push("its compression was already applied; the original is available with jcm_recall");
     else {
       delete ledger.compressions[key];
       cancelled.push("compression");
@@ -39,7 +39,7 @@ function cancelOne(ledger: Ledger, id: number): ItemResult {
   }
   const removal = ledger.removals[key];
   if (removal !== undefined) {
-    if (removal.applied) tooLate.push("it was already removed from the context; it can still be read with memory_recall through the journal entry of its span");
+    if (removal.applied) tooLate.push("it was already removed from the context; it can still be read with jcm_recall through the journal entry of its span");
     else {
       delete ledger.removals[key];
       cancelled.push("removal");
