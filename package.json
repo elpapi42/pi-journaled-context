@@ -1,9 +1,9 @@
 {
-  "name": "pi-endless-memory",
+  "name": "pi-journaled-context",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Short-term memory for Pi Durable that makes sessions endless: context edits decided in the background, plus a journal of what happened",
+  "description": "Journaled Context Memory: short-term memory for Pi Durable that keeps a conversation going without limit, by editing the context entry by entry and keeping a journal of what happened",
   "engines": {
     "node": ">=22.19.0"
   },

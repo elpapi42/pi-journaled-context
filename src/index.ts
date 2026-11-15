@@ -12,7 +12,7 @@ export { LedgerDoc, type Ledger } from "./ledger.ts";
 export const EXTENSION_NAME = "memory";
 
 /**
- * Short-term memory for Pi Durable. Fork runs decide in the background what to compress, what to remove and what to
+ * Journaled Context Memory: short-term memory for Pi Durable. Fork runs decide in the background what to compress, what to remove and what to
  * write in the journal; a compaction of our own applies those decisions as context edits, without calling a model.
  *
  * The extension adds nothing to the system prompt. The agent learns about recall from that tool's description, and

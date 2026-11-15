@@ -1,8 +1,8 @@
-# pi-endless-memory
+# Journaled Context Memory
 
-Short-term memory for [Pi Durable](https://github.com/earendil-works/pi) that lets a conversation go on without limit and without a visible compaction step.
+Journaled Context Memory (JCM) is short-term memory for [Pi Durable](https://github.com/earendil-works/pi). It lets a conversation go on without limit and without a visible compaction step.
 
-It is experimental. The name is a working name.
+This repository is the Pi Durable extension, `pi-journaled-context`. It is experimental.
 
 ## The idea
 
@@ -14,6 +14,14 @@ A long conversation cannot keep everything in the model's context. The usual ans
 - **Nothing is lost.** The original entries stay in storage, and the agent can read them again with a recall tool.
 
 The decisions are made in the background by a fork of the conversation, which has the whole context and reads it from the provider's cache. The agent's own context holds none of that work.
+
+## Where it comes from
+
+JCM combines three ideas, each from someone else's work:
+
+- **Editing the context piece by piece,** from [Context Language Models](https://arxiv.org/abs/2609.37725) (Shao et al., 2026). There the working model edits its own context; here a background copy of the conversation does it.
+- **A background process that records what happened,** from [Observational Memory](https://mastra.ai/research/observational-memory) (Mastra, 2026). Here the record is a journal that describes each stretch of activity, and nothing is written by guessing what will matter later.
+- **Several levels of detail that always lead back to the originals,** from [LCM: Lossless Context Management](https://papers.voltropy.com/LCM) (Ehrlich and Blackman, Voltropy, 2026). Here these are the ranks of the journal and the recall tool.
 
 ## How it works
 
