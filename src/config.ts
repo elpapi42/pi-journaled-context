@@ -67,7 +67,7 @@ export function resolveConfig(overrides: Partial<Record<keyof MemoryConfig, unkn
   return config;
 }
 
-/** Read the optional settings file, `<workspace>/.hpi/memory.json`. A missing or unreadable file gives the defaults. */
+/** Read the optional settings file, `<workspace>/.hpi/pi-journaled-context.json`. A missing or unreadable file gives the defaults. */
 export function loadConfig(file: string): MemoryConfig {
   if (!existsSync(file)) return resolveConfig();
   try {

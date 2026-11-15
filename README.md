@@ -61,7 +61,7 @@ A number in square brackets inside a journal entry is the id of an entry that ma
 ### With Headless Pi
 
 1. Put this folder in `<workspace>/.hpi/extensions/pi-journaled-context`.
-2. Add `"memory"` to `defaultExtensions` in `<workspace>/.hpi/config.json`, or select it per conversation with `--add-extension memory`.
+2. Add `"pi-journaled-context"` to `defaultExtensions` in `<workspace>/.hpi/config.json`, or select it per conversation with `--add-extension pi-journaled-context`.
 3. Restart the daemon.
 
 Headless Pi imports the extension at the next start in any case; it does nothing in a conversation that does not select it.
@@ -78,7 +78,7 @@ registry.install(createMemoryExtension({ spanTokens: 20_000 }));
 
 ## Settings
 
-With Headless Pi, settings are read from `<workspace>/.hpi/memory.json`. Every field is optional.
+With Headless Pi, settings are read from `<workspace>/.hpi/pi-journaled-context.json`. Every field is optional.
 
 | Setting | Default | What it does |
 | --- | --- | --- |

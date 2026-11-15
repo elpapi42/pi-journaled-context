@@ -9,7 +9,7 @@ export { DEFAULT_CONFIG, resolveConfig, type MemoryConfig } from "./config.ts";
 export { LedgerDoc, type Ledger } from "./ledger.ts";
 
 /** The name conversations select the extension by. */
-export const EXTENSION_NAME = "memory";
+export const EXTENSION_NAME = "pi-journaled-context";
 
 /**
  * Journaled Context Memory: short-term memory for Pi Durable. Fork runs decide in the background what to compress, what to remove and what to
@@ -29,5 +29,5 @@ export function createMemoryExtension(overrides: Partial<MemoryConfig> = {}) {
   });
 }
 
-/** As Headless Pi loads it: settings come from `<workspace>/.hpi/memory.json`, three folders above this one. */
-export default createMemoryExtension(loadConfig(fileURLToPath(new URL("../../../memory.json", import.meta.url))));
+/** As Headless Pi loads it: settings come from `<workspace>/.hpi/pi-journaled-context.json`, three folders above this one. */
+export default createMemoryExtension(loadConfig(fileURLToPath(new URL(`../../../${EXTENSION_NAME}.json`, import.meta.url))));
