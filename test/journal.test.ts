@@ -87,19 +87,25 @@ test("a fork made by the user gets its own copy of the ledger and runs the memor
     await t.settle();
     const parent = await t.ledger();
     assert.equal(parent.spans.length, 1);
+    assert.equal(Object.keys(parent.journal).length, 1, "the parent's fork run wrote the journal entry");
     const { ctx } = await import("./helpers.ts");
     const last = (await t.entries()).at(-1)!;
     const fork = await t.root.fork(last.id, { ownership: { kind: "ownerless" } }, ctx);
     const copy = await t.ledger(fork);
     assert.equal(copy.worker, undefined, "it is not a worker fork");
     assert.deepEqual(copy.spans, parent.spans, "it received the spans as they were at the fork point");
-    assert.deepEqual(Object.keys(copy.journal), Object.keys(parent.journal), "and the pending journal entries");
+    // The journal entry was written after the newest entry, so the copy does not have it. That gap is accepted.
+    assert.deepEqual(Object.keys(copy.journal), []);
 
-    // The fork keeps working on its own: a new span there does not touch the parent.
+    // The fork works on its own from here. Its first end of run starts a fork run for the span it inherited without
+    // a journal entry, and a new span there does not touch the parent.
     await (await fork.submit({ type: "input", content: "lookup beta" }, ctx)).wait(ctx);
-    for (let i = 0; i < 100 && ((await t.ledger(fork)).spans.length < 2 || (await t.ledger(fork)).run.active); i++) await sleep(20);
-    assert.equal((await t.ledger(fork)).spans.length, 2);
-    assert.equal((await t.ledger()).spans.length, 1);
+    const settled = async () => { const state = await t.ledger(fork); return state.spans.length === 2 && !state.run.active && Object.keys(state.journal).length === 2; };
+    for (let i = 0; i < 150 && !(await settled()); i++) await sleep(20);
+    const own = await t.ledger(fork);
+    assert.equal(own.spans.length, 2);
+    assert.equal(Object.keys(own.journal).length, 2, "the fork wrote the journal entry of the inherited span itself");
+    assert.equal((await t.ledger()).spans.length, 1, "the parent is untouched");
   } finally {
     await t.close();
   }

@@ -1,7 +1,7 @@
 import { configure, defineTask, LiveDoc, type ContextView, type ConversationId, type Tx } from "@earendil-works/pi-durable";
 import { applyCompaction } from "./compaction.ts";
 import type { MemoryConfig } from "./config.ts";
-import { asConversationId, hasPending, LedgerDoc, NOTICE_KIND, ownLedger, RUN_KIND, spansWithoutJournal, type Ledger } from "./ledger.ts";
+import { asConversationId, hasPending, LedgerDoc, NOTICE_KIND, ownLedger, spansWithoutJournal, type Ledger } from "./ledger.ts";
 import { forkInstruction } from "./prompts.ts";
 import { closeSpan, countActivity } from "./spans.ts";
 import { contextTokens, cutPoint } from "./view.ts";
@@ -81,16 +81,16 @@ export function memoryTasks(config: MemoryConfig) {
   });
 
   /**
-   * Mark the run as over and start the next one when a span closed in the meantime. The entry written here matters
-   * for forks: a fork receives the ledger as it was at the commit of the entry it is made at, and the decisions of a
-   * fork run are written in commits that add no entry to this conversation. With this entry, a fork made at the
-   * newest entry includes them.
+   * Mark the run as over and start the next one when a span closed in the meantime.
+   *
+   * A fork run's decisions are written in commits that add no entry to this conversation, and a fork receives the
+   * ledger as it was at the commit of the entry it is made at. So a fork made right after a fork run does not get that
+   * run's decisions. That is accepted: the fork's own fork runs decide them again.
    */
   async function endRun(tx: Tx, conversationId: ConversationId): Promise<void> {
     const ledger = await tx.doc(LedgerDoc, conversationId);
     const again = ledger.run.queued;
     ledger.run = { active: false, queued: false, startedAt: 0 };
-    await tx.appendEntry(conversationId, { kind: RUN_KIND, data: { spansWithoutJournal: spansWithoutJournal(ledger).length } });
     if (again) await requestRun(tx, conversationId, ledger, Date.now());
   }
 
