@@ -2,6 +2,8 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
 import { createModels, fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai";
 import { createRegistry, defineExtension, defineTool, Harness, MemoryStorage, type Conversation, type EntryRecord } from "@earendil-works/pi-durable";
+import { CodemodeSandbox } from "@earendil-works/pi-codemode";
+import { createCodemodeExtension } from "@earendil-works/pi-durable/codemode";
 import { createMemoryExtension, LedgerDoc, type Ledger, type MemoryConfig } from "../src/index.ts";
 
 export const ctx = BACKGROUND_CONTEXT;
@@ -64,19 +66,23 @@ export function scriptedModel(fork: ForkScript): Responder {
   };
 }
 
-export async function setup(config: Partial<MemoryConfig>, respond: Responder) {
+export async function setup(config: Partial<MemoryConfig>, respond: Responder, options: { codemode?: boolean } = {}) {
   const models = createModels();
   const faux = fauxProvider();
   models.setProvider(faux.provider);
   const requests: Message[][] = [];
+  /** The system messages of every request, as one text each. */
+  const systems: string[] = [];
   let count = 0;
   faux.setResponses(Array.from({ length: 400 }, () => (context: { messages: Message[] }) => {
     const messages = context.messages.filter((message) => message.role !== "system");
+    systems.push(JSON.stringify(context.messages.filter((message) => message.role === "system")));
     requests.push(messages);
     return respond(messages, count++);
   }));
   const registry = createRegistry();
   registry.install(defineExtension({ name: "test-tools", tools: [lookup] }));
+  if (options.codemode) registry.install(createCodemodeExtension({ sandbox: new CodemodeSandbox() }));
   registry.install(createMemoryExtension(config));
   const harness = await Harness.open(new MemoryStorage(), { models, registry }, ctx);
   const root = await harness.root(ctx, { agent: { model: { provider: faux.provider.id, modelId: faux.provider.getModels()[0]!.id } } });
@@ -102,5 +108,5 @@ export async function setup(config: Partial<MemoryConfig>, respond: Responder) {
     }
     throw new Error("the fork run did not finish in time");
   };
-  return { harness, root, say, ledger, entries, context, settle, requests, close: () => harness.close(ctx) };
+  return { harness, root, say, ledger, entries, context, settle, requests, systems, close: () => harness.close(ctx) };
 }

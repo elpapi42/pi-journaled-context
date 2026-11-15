@@ -1,8 +1,7 @@
-import { defineExtension, section } from "@earendil-works/pi-durable";
+import { defineExtension } from "@earendil-works/pi-durable";
 import { fileURLToPath } from "node:url";
 import { loadConfig, resolveConfig, type MemoryConfig } from "./config.ts";
 import { memoryHooks } from "./hooks.ts";
-import { MEMORY_SECTION } from "./prompts.ts";
 import { memoryTasks } from "./tasks.ts";
 import { memoryTools } from "./tools/index.ts";
 
@@ -15,13 +14,15 @@ export const EXTENSION_NAME = "memory";
 /**
  * Short-term memory for Pi Durable. Fork runs decide in the background what to compress, what to remove and what to
  * write in the journal; a compaction of our own applies those decisions as context edits, without calling a model.
+ *
+ * The extension adds nothing to the system prompt. The agent learns about recall from that tool's description, and
+ * only a fork run is told about the other tools, in its instruction.
  */
 export function createMemoryExtension(overrides: Partial<MemoryConfig> = {}) {
   const config = resolveConfig(overrides);
   const tasks = memoryTasks(config);
   return defineExtension({
     name: EXTENSION_NAME,
-    sections: [section("memory", () => MEMORY_SECTION, { tag: false })],
     tools: memoryTools(config),
     tasks: [tasks.Tick, tasks.SilenceTimer, tasks.ForkRun],
     hooks: memoryHooks(tasks),

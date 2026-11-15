@@ -86,7 +86,7 @@ With Headless Pi, settings are read from `<workspace>/.hpi/memory.json`. Every f
 | `recallPageTokens` | 20000 | Most raw history one recall answer returns |
 | `forkTurnLimit` | 16 | Turns a fork run may take |
 | `silenceMs` | 180000 | Silence that closes an open span |
-| `codemodeOnly` | false | Offer the memory tools only to codemode scripts, not to the model directly |
+| `codemodeOnly` | false | Offer the memory tools only to codemode scripts, and keep the five maintenance tools out of codemode's tool list. Recommended; see below. |
 
 Token counts are estimates, as pi-ai estimates them.
 
@@ -101,9 +101,16 @@ Token counts are estimates, as pi-ai estimates them.
 | `memory_journal` | Writes the journal entry of a closed span |
 | `memory_fold` | Writes the journal entry of the next rank when a rank is over its limit |
 
-The maintenance tools are meant for fork runs. Each one checks what it is asked and refuses with an explanation, for example when a target is inside the protected recent part or when a tool result would be removed alone.
+The first is for the agent. The other five are the maintenance tools, meant for fork runs. Each one checks what it is asked and refuses with an explanation, for example when a target is inside the protected recent part or when a tool result would be removed alone.
 
 A fork run can call nothing but these tools. Every other tool call is blocked there, so a fork cannot act on the world.
+
+### Who knows about the tools
+
+The extension adds nothing to the system prompt. The agent learns about recall from that tool's description, and a fork run is told about the maintenance tools in its instruction.
+
+- **With `codemodeOnly: true`** (needs the codemode extension): no memory tool is offered to the model directly. The five maintenance tools are deferred, so codemode does not list them and the agent does not know they exist. Only `memory_recall` appears in codemode's tool list. A fork run calls the tools from codemode scripts.
+- **With `codemodeOnly: false`:** all six are ordinary tools the model can call. Expect the agent to call the maintenance tools itself from time to time; in tests one model did so on every turn.
 
 ## Limits of this version
 

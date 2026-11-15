@@ -2,18 +2,6 @@ import type { MemoryConfig } from "./config.ts";
 import { foldDue, spansWithoutJournal, type Ledger } from "./ledger.ts";
 import { journalText, stamp } from "./render.ts";
 
-/** What the agent is told about the marks it sees in its context. A section of the system prompt. */
-export const MEMORY_SECTION = `## Memory
-
-This conversation has a long-running memory. Older parts are kept in a shorter form so the session can go on without limit.
-
-- User messages and tool results start with a header such as <entry id="4823" at="2026-11-15 09:09" after="4822"/>. \`id\` identifies that entry, \`at\` is when it was written, and \`after\` is the id of your own message just before it. All times are UTC. The system adds these headers; never write one yourself.
-- A tool result whose header says compressed="true" is a shortened version of the original.
-- A <journal id="..." from="..." to="..." rank="..."> block is a record of earlier work that is no longer shown in full. A higher rank covers a longer stretch in less detail. A number in square brackets inside it, such as [4871], is the id of an entry that mattered there.
-- Treat journal entries and compressed results as accurate records. Work they describe as done is done; do not redo it unless asked.
-- When you need the exact content behind one of these, call memory_recall with its id. A journal entry returns what it was written from, a compressed result returns the original, and an id in square brackets returns that entry.
-- memory_compress, memory_remove, memory_cancel, memory_journal and memory_fold belong to a separate maintenance run that happens in the background. Do not call them during your normal work.`;
-
 export const TOOL_DESCRIPTIONS = {
   compress:
     "Memory maintenance. Mark tool results to be replaced by a short text at the next compaction. Pass all of them in one call as `items`. For each, `id` is the id in the result's header and `text` says what came of the call and keeps the exact details still needed. Only results older than the protected recent part can be compressed.",
@@ -26,7 +14,7 @@ export const TOOL_DESCRIPTIONS = {
   fold:
     "Memory maintenance. Write one journal entry of the next rank for the journal entries a fold is due for. Call it only when memory_journal or memory_fold answered that a fold is due. `text` covers all of them in one coarser paragraph.",
   recall:
-    "Read what is behind an id. A journal entry of rank 2 or higher returns the journal entries it was written from. A journal entry of rank 1 returns the original entries of its span, in pages; pass `after` with the id the previous page ended on to continue. A compressed tool result, or any other entry id, returns that original entry. A page can be long: in a codemode script, raise the script's output limit in its options line, for example // @options: {\"max_output_tokens\": 30000}.",
+    "Parts of this conversation are kept in a shorter form: a tool result whose header says compressed=\"true\" is a shortened version of the original, and a <journal> block records earlier work that is no longer shown in full. This tool returns what is behind an id. A journal entry of rank 2 or higher returns the journal entries it was written from. A journal entry of rank 1 returns the original entries of its span, in pages; pass `after` with the id the previous page ended on to continue. A compressed tool result, or a number in square brackets inside a journal entry, returns that original entry. A page can be long: in a codemode script, raise the script's output limit in its options line, for example // @options: {\"max_output_tokens\": 30000}.",
 } as const;
 
 /** The message a worker fork receives. It is written for a model that holds the whole conversation in its context. */
@@ -41,9 +29,13 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
 
   const lines: string[] = [
     "<memory-maintenance>",
-    "This is a memory maintenance run on a copy of the conversation. It is not a message from the user. Nothing you write here is shown to the user or added to the real conversation. Do not continue the task and do not call any tool except the memory tools. When you are finished, reply with the single word: done",
+    "This is a memory maintenance run on a copy of the conversation. It is not a message from the user. Nothing you write here is shown to the user or added to the real conversation. Do not continue the task and do not call any tool except the memory tools described below. When you are finished, reply with the single word: done",
     "",
     "Why this runs: the conversation is long-lived. To keep it going without limit, older parts are shortened or dropped once they are no longer useful, and a journal records what happened. You hold the whole context, so you are the one who can judge.",
+    "",
+    "What you see in the context: user messages and tool results start with a header such as <entry id=\"4823\" at=\"2026-11-15 09:09\" after=\"4822\"/>. `id` is the id of that entry, `at` is when it was written (UTC), and `after` is the id of your own message just before it; your own messages carry no header. A tool result whose header says compressed=\"true\" was already shortened. A <journal> block is a journal entry that an earlier run like this one wrote.",
+    "",
+    ...toolReference(config),
     "",
     "Do these steps in order.",
     "",
@@ -84,4 +76,26 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
   }
   lines.push("</memory-maintenance>");
   return lines.join("\n");
+}
+
+/** The memory tools as the fork is told about them. The fork is the only one that learns they exist. */
+function toolReference(config: MemoryConfig): string[] {
+  const how = config.codemodeOnly
+    ? [
+        "The memory tools are not listed anywhere else. Call them from a codemode script as `await tools.<name>(arguments)`. Each one returns a text that says what it did or why it refused an item. Print what every call returns with console.log so you can read it, for example:",
+        "console.log(await tools.memory_journal({ span: 4830, text: \"...\" }));",
+        "You can make several calls in one script.",
+      ]
+    : ["The memory tools are ordinary tools. Each one answers with a text that says what it did or why it refused an item."];
+  return [
+    "The memory tools:",
+    ...how,
+    "- memory_journal({ span: number, text: string }) writes the journal entry of one closed span.",
+    "- memory_fold({ text: string }) writes one journal entry of the next rank, when a tool answer says a fold is due.",
+    "- memory_compress({ items: [{ id: number, text: string }, ...] }) marks tool results to be replaced by the given short text.",
+    "- memory_remove({ items: [{ id: number, reason: string }, ...] }) marks user messages or your own messages to leave the context.",
+    "- memory_cancel({ ids: [number, ...] }) withdraws a pending compression or removal.",
+    "- memory_recall({ id: number, after?: number }) returns what is behind an id: the journal entries a higher-rank journal entry was written from, the original entries of a rank 1 journal entry's span, or the original of one entry.",
+    "Nothing these tools mark changes the context now. It is applied later, all at once.",
+  ];
 }
