@@ -1,6 +1,6 @@
 import type { Message, TextContent, UserMessage } from "@earendil-works/pi-ai";
 import type { ContextView, EntryRecord } from "@earendil-works/pi-durable";
-import { SPAN_KIND, type JournalEntry, type Ledger } from "./ledger.ts";
+import { isMemoryKind, type JournalEntry, type Ledger } from "./ledger.ts";
 
 /** A time as the model sees it: UTC, to the minute. */
 export function stamp(ms: number): string {
@@ -65,8 +65,8 @@ export function withHeaders(messages: readonly Message[], view: ContextView, led
     }
     const role = previousRole;
     previousRole = message.role;
-    // A journal entry carries its own wrapper, and a message without an entry was synthesized by the Harness.
-    if (entry === undefined || entry.kind === SPAN_KIND) return message;
+    // A journal entry of any rank carries its own wrapper, and a message without an entry was synthesized by the Harness.
+    if (entry === undefined || isMemoryKind(entry.kind)) return message;
     const follows = message.role === "toolResult" || role === "assistant";
     const header = text(
       entryHeader({

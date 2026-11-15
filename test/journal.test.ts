@@ -49,6 +49,12 @@ test("a rank over its limit folds into the next rank, and recall walks back down
     assert.match(journals[0]!, new RegExp(`^user: <journal id="${folded.id}" from="[^"]+" to="[^"]+" rank="2">`));
     assert.match(journals[1]!, new RegExp(`^user: <journal id="${third!.id}" from="[^"]+" to="[^"]+" rank="1">`));
 
+    // What the provider is sent: a journal entry of any rank starts with its own wrapper, not with an entry header.
+    await t.say("thanks");
+    const sent = t.requests[t.requests.length - 1]!.map(textOf).filter((text) => text.includes("<journal"));
+    assert.equal(sent.length, 2);
+    assert.ok(sent.every((text) => text.startsWith("<journal id=")), "no header is put in front of a journal entry");
+
     // Recall on rank 2 returns the journal entries it was written from.
     await t.say(`call memory_recall {"id": ${folded.id}}`);
     const down = lastResult(t.requests);
