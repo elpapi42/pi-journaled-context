@@ -116,6 +116,11 @@ export function memoryTasks(config: MemoryConfig) {
     view: ContextView,
     options: { now: number; closeOpenSpan: boolean; window: number | undefined },
   ): Promise<void> {
+    // The first time, start at the oldest entry of the context. For a conversation that existed before the extension
+    // was selected, what an earlier compaction or reset left behind is not counted: the model no longer sees it.
+    if (ledger.counted === 0 && view.entries.length > 0) {
+      ledger.counted = view.entries.reduce((oldest, entry) => Math.min(oldest, entry.id), Number.POSITIVE_INFINITY) - 1;
+    }
     await countActivity(tx, conversationId, ledger, options.now);
     if (ledger.open.tokens >= config.spanTokens || options.closeOpenSpan) await closeSpan(tx, conversationId, ledger, options.closeOpenSpan ? "silence" : "size", config.foldSize);
     await requestRun(tx, conversationId, ledger, options.now);

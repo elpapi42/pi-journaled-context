@@ -84,7 +84,8 @@ export async function setup(config: Partial<MemoryConfig>, respond: Responder, o
   const registry = createRegistry();
   registry.install(defineExtension({ name: "test-tools", tools: [lookup] }));
   if (options.codemode) registry.install(createCodemodeExtension({ sandbox: new CodemodeSandbox() }));
-  registry.install(createMemoryExtension(config));
+  const memory = createMemoryExtension(config);
+  registry.install(memory);
   const harness = await Harness.open(new MemoryStorage(), { models, registry }, ctx);
   const root = await harness.root(ctx, { agent: { model: { provider: faux.provider.id, modelId: faux.provider.getModels()[0]!.id } } });
 
@@ -109,5 +110,8 @@ export async function setup(config: Partial<MemoryConfig>, respond: Responder, o
     }
     throw new Error("the fork run did not finish in time");
   };
-  return { harness, root, say, ledger, entries, context, settle, requests, systems, close: () => harness.close(ctx) };
+  /** Take the extension out of the conversation, and put it back, as when it is enabled for an existing conversation. */
+  const disable = () => root.configure({ extensions: { remove: [memory] } }, ctx);
+  const enable = () => root.configure({ extensions: null }, ctx);
+  return { harness, root, say, ledger, entries, context, settle, requests, systems, disable, enable, close: () => harness.close(ctx) };
 }
