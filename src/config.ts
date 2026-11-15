@@ -26,6 +26,11 @@ export type MemoryConfig = {
   forkTurnLimit: number;
   /** Silence that closes an open span. */
   silenceMs: number;
+  /**
+   * Offer the memory tools only to codemode scripts, not to the model directly. For setups where every tool is
+   * reached through codemode.
+   */
+  codemodeOnly: boolean;
 };
 
 export const DEFAULT_CONFIG: MemoryConfig = {
@@ -41,14 +46,20 @@ export const DEFAULT_CONFIG: MemoryConfig = {
   recallPageTokens: 20_000,
   forkTurnLimit: 16,
   silenceMs: 3 * 60_000,
+  codemodeOnly: false,
 };
 
-/** `overrides` over the defaults. A value that is not a positive finite number is ignored. */
+/** `overrides` over the defaults. A value of the wrong type, or a number that is not positive and finite, is ignored. */
 export function resolveConfig(overrides: Partial<Record<keyof MemoryConfig, unknown>> = {}): MemoryConfig {
-  const config = { ...DEFAULT_CONFIG };
+  const config: MemoryConfig = { ...DEFAULT_CONFIG };
+  const numbers = config as unknown as Record<string, number | boolean>;
   for (const key of Object.keys(DEFAULT_CONFIG) as (keyof MemoryConfig)[]) {
     const value = overrides[key];
-    if (typeof value === "number" && Number.isFinite(value) && value > 0) config[key] = value;
+    if (typeof DEFAULT_CONFIG[key] === "boolean") {
+      if (typeof value === "boolean") numbers[key] = value;
+    } else if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      numbers[key] = value;
+    }
   }
   // A fold must leave the rank at or under its limit, and must fold at least two entries.
   config.foldSize = Math.max(2, Math.min(Math.floor(config.foldSize), Math.floor(config.rankSize)));

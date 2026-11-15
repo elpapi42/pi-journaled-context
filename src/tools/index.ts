@@ -9,5 +9,7 @@ import { REMOVE_TOOL, removeTool } from "./remove.ts";
 export const MEMORY_TOOL_NAMES: ReadonlySet<string> = new Set([COMPRESS_TOOL, REMOVE_TOOL, CANCEL_TOOL, JOURNAL_TOOL, FOLD_TOOL, RECALL_TOOL]);
 
 export function memoryTools(config: MemoryConfig) {
-  return [compressTool(config), removeTool(config), cancelTool(), journalTool(config), foldTool(config), recallTool(config)];
+  const tools = [compressTool(config), removeTool(config), cancelTool(), journalTool(config), foldTool(config), recallTool(config)];
+  // With `codemodeOnly` the model is not offered the tools; its codemode scripts call them.
+  return config.codemodeOnly ? tools.map((tool) => ({ ...tool, callers: ["tools"] as const })) : tools;
 }

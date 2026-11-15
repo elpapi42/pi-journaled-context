@@ -16,17 +16,17 @@ This conversation has a long-running memory. Older parts are kept in a shorter f
 
 export const TOOL_DESCRIPTIONS = {
   compress:
-    "Memory maintenance. Mark one tool result to be replaced by a short text at the next compaction. `id` is the id in the result's header. `text` says what came of the call and keeps the exact details still needed. Only results older than the protected recent part can be compressed.",
+    "Memory maintenance. Mark tool results to be replaced by a short text at the next compaction. Pass all of them in one call as `items`. For each, `id` is the id in the result's header and `text` says what came of the call and keeps the exact details still needed. Only results older than the protected recent part can be compressed.",
   remove:
-    "Memory maintenance. Mark one user message or one of your own messages to leave the context at the next compaction. `id` is the id of a user message, or of one of your messages (the `after` value in the header of the message that follows it). Removing one of your messages also removes its tool calls and their results. A tool result cannot be removed alone. `reason` is one short phrase.",
+    "Memory maintenance. Mark user messages or your own messages to leave the context at the next compaction. Pass all of them in one call as `items`. For each, `id` is the id of a user message, or of one of your messages (the `after` value in the header of the message that follows it), and `reason` is one short phrase. Removing one of your messages also removes its tool calls and their results. A tool result cannot be removed alone.",
   cancel:
-    "Memory maintenance. Withdraw a pending compression or removal by the id of its entry, before it is applied.",
+    "Memory maintenance. Withdraw pending compressions or removals by the ids of their entries, before they are applied.",
   journal:
     "Memory maintenance. Write the journal entry of one closed span. `span` is the span id given in the maintenance instructions. `text` is one paragraph of plain prose: a truthful account of that stretch of the conversation.",
   fold:
     "Memory maintenance. Write one journal entry of the next rank for the journal entries a fold is due for. Call it only when memory_journal or memory_fold answered that a fold is due. `text` covers all of them in one coarser paragraph.",
   recall:
-    "Read what is behind an id. A journal entry of rank 2 or higher returns the journal entries it was written from. A journal entry of rank 1 returns the original entries of its span, in pages; pass `after` with the id the previous page ended on to continue. A compressed tool result, or any other entry id, returns that original entry.",
+    "Read what is behind an id. A journal entry of rank 2 or higher returns the journal entries it was written from. A journal entry of rank 1 returns the original entries of its span, in pages; pass `after` with the id the previous page ended on to continue. A compressed tool result, or any other entry id, returns that original entry. A page can be long: in a codemode script, raise the script's output limit in its options line, for example // @options: {\"max_output_tokens\": 30000}.",
 } as const;
 
 /** The message a worker fork receives. It is written for a model that holds the whole conversation in its context. */
@@ -67,13 +67,13 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
   lines.push(
     "",
     "2. Compress.",
-    `Look at the tool results with an id below ${cut}. For each one whose full content is no longer needed for the work ahead, call memory_compress with a short text that says what came of the call and keeps the exact details that still matter. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
+    `Look at the tool results with an id below ${cut}. For each one whose full content is no longer needed for the work ahead, write a short text that says what came of the call and keeps the exact details that still matter, and pass all of them to memory_compress in one call. The text may be at most about ${config.compressedTextTokens} tokens and at most ${Math.round(config.compressedTextRatio * 100)}% of the original. Leave a result as it is while its full content is still useful, and skip results that are already short.`,
     "",
     "3. Remove.",
-    `Look at the user messages and your own messages with an id below ${cut}. For each one that is no longer useful for the current working context, the open work and the goals, call memory_remove with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
+    `Look at the user messages and your own messages with an id below ${cut}. Pass every one that is no longer useful for the current working context, the open work and the goals to memory_remove in one call, each with its id and a short reason. The id of one of your own messages is the \`after\` value in the header of the message that follows it. Removing one of your messages also removes its tool calls and their results. Keep whatever is still useful, however old it is: instructions and preferences that still apply, decisions in force, open questions. The journal keeps the record of what is removed.`,
     "",
     "4. Cancel.",
-    "If something already pending should not happen after all, for example because the work came back to it, call memory_cancel with its id.",
+    "If something already pending should not happen after all, for example because the work came back to it, call memory_cancel with its id. If a tool refuses an item, read why and do not repeat the same request.",
     "",
     `Entries with an id of ${cut} or higher are the protected recent part and cannot be compressed or removed.`,
     `Already pending, do not repeat them. Compressions: ${pendingCompressions.join(", ") || "none"}. Removals: ${pendingRemovals.join(", ") || "none"}.`,

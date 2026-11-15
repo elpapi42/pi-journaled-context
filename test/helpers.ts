@@ -34,8 +34,8 @@ export const headerIds = (messages: readonly Message[], role: Message["role"]) =
   messages.filter((message) => message.role === role).map((message) => Number(/<entry id="(\d+)"/.exec(textOf(message))?.[1])).filter((id) => !Number.isNaN(id));
 
 /**
- * The model of the tests. A user message "lookup <topic>" makes it call the lookup tool and then answer; any other
- * message gets a short answer. In a maintenance run it makes the calls `fork` returns, then says done. A tool answer
+ * The model of the tests. A user message "lookup <topic>" makes it call the lookup tool and then answer, and
+ * "call <tool> <json>" makes it call that tool; any other message gets a short answer. In a maintenance run it makes the calls `fork` returns, then says done. A tool answer
  * that announces a fold makes it write the fold.
  */
 export function scriptedModel(fork: ForkScript): Responder {
@@ -54,8 +54,10 @@ export function scriptedModel(fork: ForkScript): Responder {
     if (maintenance) {
       const calls = fork(messages, instruction);
       if (calls.length === 0) return fauxAssistantMessage("done");
-      return fauxAssistantMessage(calls.map((call) => fauxToolCall(call.name, call.args)), { stopReason: "toolUse" });
+      return fauxAssistantMessage(calls.map((call) => fauxToolCall(call.name, call.args as never)), { stopReason: "toolUse" });
     }
+    const call = /call (\w+) (\{.*\})/s.exec(textOf(last));
+    if (call !== null) return fauxAssistantMessage(fauxToolCall(call[1]!, JSON.parse(call[2]!)), { stopReason: "toolUse" });
     const topic = /lookup (\w+)/.exec(textOf(last))?.[1];
     if (topic !== undefined) return fauxAssistantMessage(fauxToolCall("lookup", { topic }), { stopReason: "toolUse" });
     return fauxAssistantMessage("Understood.");

@@ -6,6 +6,8 @@ export const SPAN_KIND = "memory.span";
 export const FOLD_KIND = "memory.fold";
 export const COMPACTION_KIND = "memory.compaction";
 export const NOTICE_KIND = "memory.notice";
+/** Written when a fork run ends. It gives the decisions of that run a place in the transcript, see `endRun()`. */
+export const RUN_KIND = "memory.run";
 export const isMemoryKind = (kind: string): boolean => kind.startsWith("memory.");
 
 /** A closed span: a contiguous amount of activity. Its id is the id of its marker entry. */

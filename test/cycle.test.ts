@@ -15,9 +15,9 @@ const diligentFork: ForkScript = (messages, instruction) => {
   const before = messages.slice(0, -1);
   const raw = before.filter((message: Message) => message.role === "toolResult" && !textOf(message).includes('compressed="true"'));
   const result = headerIds(raw, "toolResult").find((id) => id < cut);
-  if (result !== undefined) calls.push({ name: "memory_compress", args: { id: result, text: "lookup returned forty numbered facts; fact 1 is 0." } });
+  if (result !== undefined) calls.push({ name: "memory_compress", args: { items: [{ id: result, text: "lookup returned forty numbered facts; fact 1 is 0." }] } });
   const user = headerIds(before, "user").find((id) => id < cut);
-  if (user !== undefined) calls.push({ name: "memory_remove", args: { id: user, reason: "the lookup it asked for is done" } });
+  if (user !== undefined) calls.push({ name: "memory_remove", args: { items: [{ id: user, reason: "the lookup it asked for is done" }] } });
   return calls;
 };
 
