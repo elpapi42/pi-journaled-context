@@ -53,7 +53,15 @@ export type JournalEntry = {
 };
 
 export type PendingCompression = { text: string; applied: boolean };
-export type PendingRemoval = { reason: string; applied: boolean };
+export type PendingRemoval = {
+  reason: string;
+  applied: boolean;
+  /**
+   * Ids of the tool results that leave with it: those of its tool calls when it is one of the assistant's messages,
+   * none otherwise. Absent only in a record written before this field existed.
+   */
+  results?: number[];
+};
 
 /** Everything the memory system knows about one conversation. Stored as a conversation document. */
 export type Ledger = {

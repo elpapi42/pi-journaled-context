@@ -20,7 +20,10 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
   const spans = spansWithoutJournal(ledger);
   const due = foldDue(ledger, config);
   const pendingCompressions = Object.entries(ledger.compressions).filter(([, item]) => !item.applied).map(([id]) => id);
-  const pendingRemovals = Object.entries(ledger.removals).filter(([, item]) => !item.applied).map(([id]) => id);
+  // A removal of one of the assistant's messages is listed with the tool results that leave with it.
+  const pendingRemovals = Object.entries(ledger.removals)
+    .filter(([, item]) => !item.applied)
+    .map(([id, item]) => (item.results === undefined || item.results.length === 0 ? id : `${id} (results ${item.results.join(", ")})`));
   const unseen = Object.values(ledger.journal)
     .filter((entry) => !entry.applied && entry.foldedInto === undefined)
     .sort((a, b) => a.from - b.from);
@@ -67,7 +70,9 @@ export function forkInstruction(ledger: Ledger, config: MemoryConfig, cut: numbe
     "If something already pending should not happen after all, for example because the work came back to it, call jcm_cancel with its id. If a tool refuses an item, read why and do not repeat the same request.",
     "",
     `Entry ${cut} and every entry after it are the protected recent part. They cannot be compressed or removed, so do not ask for them.`,
-    `Already pending, do not repeat them. Compressions: ${pendingCompressions.join(", ") || "none"}. Removals: ${pendingRemovals.join(", ") || "none"}.`,
+    "Already decided by earlier runs like this one and still pending. Do not repeat them:",
+    `- Removals: ${pendingRemovals.join(", ") || "none"}. When one of your messages is removed, the results of its tool calls leave with it; they are the ids in brackets. Do not compress those results.`,
+    `- Compressions, by the id of the tool result: ${pendingCompressions.join(", ") || "none"}.`,
   );
   if (unseen.length > 0) {
     lines.push("", "Journal entries that are written but not yet shown in the context:");

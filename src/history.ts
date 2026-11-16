@@ -1,5 +1,5 @@
 import type { ConversationId, EntryRecord, Tx } from "@earendil-works/pi-durable";
-import { asEntryId } from "./ledger.ts";
+import { asEntryId, type Ledger } from "./ledger.ts";
 import { entryTokens } from "./tokens.ts";
 import { toolCalls, toolResultMessage } from "./view.ts";
 
@@ -58,6 +58,20 @@ export async function resultsOfEntry(tx: Tx, owner: ConversationId, assistant: E
     cursor = results.length >= callIds.size ? undefined : page.next;
   } while (cursor !== undefined);
   return results;
+}
+
+/**
+ * Record, for every pending removal that does not say it yet, which tool results leave with it. A fork run is told
+ * these, so it does not write a compression for a result that is on its way out.
+ */
+export async function recordRemovalResults(tx: Tx, owner: ConversationId, ledger: Ledger): Promise<void> {
+  for (const id of Object.keys(ledger.removals)) {
+    // Read and written through the ledger itself: a change to a value taken out of the document is not tracked.
+    const removal = ledger.removals[id]!;
+    if (removal.applied || removal.results !== undefined) continue;
+    const entry = await findEntry(tx, owner, Number(id));
+    ledger.removals[id]!.results = entry === undefined ? [] : (await resultsOfEntry(tx, owner, entry)).map((result) => result.id);
+  }
 }
 
 /**

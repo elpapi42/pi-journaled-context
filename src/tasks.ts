@@ -2,6 +2,7 @@ import { configure, defineTask, LiveDoc, type ContextView, type ConversationId, 
 import { applyCompaction } from "./compaction.ts";
 import type { MemoryConfig } from "./config.ts";
 import { asConversationId, hasPending, LedgerDoc, NOTICE_KIND, ownLedger, spansWithoutJournal, type Ledger } from "./ledger.ts";
+import { recordRemovalResults } from "./history.ts";
 import { forkInstruction } from "./prompts.ts";
 import { closeSpan, countActivity } from "./spans.ts";
 import { contextTokens, cutPoint } from "./view.ts";
@@ -120,6 +121,14 @@ export function memoryTasks(config: MemoryConfig) {
     // was selected, what an earlier compaction or reset left behind is not counted: the model no longer sees it.
     if (ledger.counted === 0 && view.entries.length > 0) {
       ledger.counted = view.entries.reduce((oldest, entry) => Math.min(oldest, entry.id), Number.POSITIVE_INFINITY) - 1;
+    }
+    // Removals recorded by an earlier version do not say which tool results leave with them, and the instruction of
+    // a fork needs that. It is done here, before this commit writes any entry: the history cannot be read after that,
+    // and the commit that makes the fork may not change this ledger.
+    try {
+      await recordRemovalResults(tx, conversationId, ledger);
+    } catch {
+      // Without them the instruction lists those removals by their id alone, as it did before.
     }
     await countActivity(tx, conversationId, ledger, options.now);
     if (ledger.open.tokens >= config.spanTokens || options.closeOpenSpan) await closeSpan(tx, conversationId, ledger, options.closeOpenSpan ? "silence" : "size", config.foldSize);

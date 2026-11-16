@@ -62,11 +62,11 @@ async function removeOne(tx: Tx, owner: ConversationId, ledger: Ledger, cut: num
   const existing = ledger.removals[String(id)];
   if (existing?.applied) return refused(`Entry ${id} was already removed from the context.`);
   if (existing !== undefined) return refused(`Entry ${id} is already pending removal.`);
-  ledger.removals[String(id)] = { reason, applied: false };
+  const calls = role === "user" ? [] : toolCalls(entry);
+  const results = calls.length === 0 ? [] : (await resultsOfEntry(tx, owner, entry)).map((result) => result.id);
+  ledger.removals[String(id)] = { reason, applied: false, results };
   if (role === "user") return done(`Pending: user message ${id} leaves the context at the next compaction.`);
-  const calls = toolCalls(entry);
   if (calls.length === 0) return done(`Pending: your message ${id} leaves the context at the next compaction.`);
-  const results = (await resultsOfEntry(tx, owner, entry)).map((result) => result.id);
   // A pending compression of a result that leaves anyway is no longer needed.
   for (const result of results) if (ledger.compressions[String(result)]?.applied === false) delete ledger.compressions[String(result)];
   return done(
