@@ -89,6 +89,7 @@ With Headless Pi, settings are read from `<workspace>/.hpi/pi-journaled-context.
 | `journalEntryTokens` | 300 | Ceiling of one journal entry |
 | `compressedTextTokens` | 300 | Ceiling of one compressed tool result |
 | `compressedTextRatio` | 0.5 | A compressed text may be at most this share of the original |
+| `shortResultTokens` | 200 | A tool result below this size is not worth compressing; a fork run is told to leave it |
 | `rankSize` | 30 | Most journal entries one rank may hold |
 | `foldSize` | 10 | How many of a rank's oldest journal entries fold into one |
 | `recallPageTokens` | 20000 | Most raw history one recall answer returns |

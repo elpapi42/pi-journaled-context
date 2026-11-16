@@ -16,6 +16,8 @@ export type MemoryConfig = {
   compressedTextTokens: number;
   /** A compressed text may be at most this share of the original. */
   compressedTextRatio: number;
+  /** A tool result below this size is not worth compressing; a fork run is told to leave it. */
+  shortResultTokens: number;
   /** Most journal entries one rank may hold. */
   rankSize: number;
   /** How many of a rank's oldest journal entries fold into one of the next rank. */
@@ -41,6 +43,7 @@ export const DEFAULT_CONFIG: MemoryConfig = {
   journalEntryTokens: 300,
   compressedTextTokens: 300,
   compressedTextRatio: 0.5,
+  shortResultTokens: 200,
   rankSize: 30,
   foldSize: 10,
   recallPageTokens: 20_000,
